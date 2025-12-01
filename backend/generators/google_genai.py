@@ -111,20 +111,37 @@ def parse_genai_error(error: Exception) -> str:
 
     # 404 资源不存在
     if "404" in error_str or "not_found" in error_str or "not found" in error_str:
-        if "model" in error_str:
-            return (
-                "❌ 模型不存在\n\n"
-                "【可能原因】\n"
-                "1. 模型名称拼写错误\n"
-                "2. 该模型已下线或更名\n"
-                "3. 该模型尚未在您的区域开放\n\n"
-                "【解决方案】\n"
-                "1. 检查模型名称是否正确\n"
-                "2. 推荐使用的图片生成模型：\n"
-                "   - imagen-3.0-generate-002（推荐）\n"
-                "   - gemini-2.0-flash-exp-image-generation\n"
-                "3. 查看官方文档获取最新可用模型列表"
-            )
+        if "model" in error_str or "imagen" in error_str.lower():
+            # 检查是否是 Imagen 模型
+            if "imagen" in error_str.lower() or "imagen-3.0" in error_original:
+                return (
+                    "❌ Imagen 模型不支持当前 API 端点\n\n"
+                    "【问题说明】\n"
+                    "`imagen-3.0-generate-002` 是 Google 的 Imagen 模型，它使用不同的 API 端点，"
+                    "不支持 `generate_content_stream` 方法。\n\n"
+                    "【解决方案】\n"
+                    "请使用以下 Gemini 系列的图片生成模型（推荐）：\n"
+                    "1. `gemini-2.0-flash-exp-image-generation`（推荐，支持图片生成）\n"
+                    "2. `gemini-1.5-pro`（如果支持图片生成）\n"
+                    "3. 或者使用 `Image API` 类型的服务商来调用 Imagen 模型\n\n"
+                    "【操作步骤】\n"
+                    "在系统设置中，将图片生成模型改为：`gemini-2.0-flash-exp-image-generation`"
+                )
+            else:
+                return (
+                    "❌ 模型不存在\n\n"
+                    "【可能原因】\n"
+                    "1. 模型名称拼写错误\n"
+                    "2. 该模型已下线或更名\n"
+                    "3. 该模型尚未在您的区域开放\n\n"
+                    "【解决方案】\n"
+                    "1. 检查模型名称是否正确\n"
+                    "2. 推荐使用的图片生成模型：\n"
+                    "   - `gemini-2.0-flash-exp-image-generation`（推荐）\n"
+                    "   - `gemini-1.5-pro`（如果支持图片生成）\n"
+                    "3. 查看官方文档获取最新可用模型列表\n\n"
+                    "⚠️ 注意：`imagen-3.0-generate-002` 不支持当前 API 端点，请使用 Gemini 系列模型"
+                )
         else:
             return (
                 "❌ 请求的资源不存在\n\n"
@@ -508,6 +525,21 @@ class GoogleGenAIGenerator(ImageGeneratorBase):
             safety_settings=self.safety_settings,
             image_config=types.ImageConfig(**image_config_kwargs),
         )
+
+        # 检测 Imagen 模型（不支持 generate_content_stream）
+        if model and model.startswith("imagen-"):
+            raise ValueError(
+                "❌ Imagen 模型不支持当前 API 调用方式\n\n"
+                "【问题说明】\n"
+                f"`{model}` 是 Google 的 Imagen 模型，它使用不同的 API 端点（`generateImages`），"
+                "不支持 `generate_content_stream` 方法。\n\n"
+                "【解决方案】\n"
+                "请使用以下 Gemini 系列的图片生成模型（推荐）：\n"
+                "1. `gemini-2.0-flash-exp-image-generation`（推荐，支持图片生成）\n"
+                "2. 或者使用 `Image API` 类型的服务商来调用 Imagen 模型\n\n"
+                "【操作步骤】\n"
+                "在系统设置中，将图片生成模型改为：`gemini-2.0-flash-exp-image-generation`"
+            )
 
         image_data = None
         logger.debug(f"  开始调用 API: model={model}")
