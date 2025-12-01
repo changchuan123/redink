@@ -80,6 +80,21 @@ def parse_genai_error(error: Exception) -> str:
                 "1. 某些 API 可能在您的地区不可用\n"
                 "2. 尝试使用代理或配置 base_url 指向可用区域"
             )
+        elif "image" in error_str or "gemini-3-pro-image" in error_str or "imagen" in error_str:
+            return (
+                "❌ 权限被拒绝：图片生成模型访问受限\n\n"
+                "【可能原因】\n"
+                "1. `gemini-3-pro-image-preview` 模型可能需要特殊权限或白名单\n"
+                "2. 该模型可能已下线或更名\n"
+                "3. API Key 没有访问图片生成模型的权限\n\n"
+                "【解决方案】\n"
+                "1. 在系统设置中更换图片生成模型，推荐使用：\n"
+                "   - `imagen-3.0-generate-002`（推荐，Google 官方图片生成模型）\n"
+                "   - `gemini-2.0-flash-exp-image-generation`\n"
+                "2. 检查 Google Cloud Console 中的 API 权限\n"
+                "3. 确认 Generative Language API 已启用\n"
+                "4. 如果使用 Google AI Studio API Key，确保已启用图片生成功能"
+            )
         else:
             return (
                 "❌ 权限被拒绝\n\n"
@@ -90,7 +105,8 @@ def parse_genai_error(error: Exception) -> str:
                 "【解决方案】\n"
                 "1. 检查 Google Cloud Console 中的 API 权限\n"
                 "2. 确认模型是否对您的账户开放\n"
-                "3. 尝试使用其他模型（如 gemini-2.0-flash-exp）"
+                "3. 尝试使用其他模型（如 gemini-2.0-flash-exp）\n"
+                "4. 如果是图片生成，尝试使用 `imagen-3.0-generate-002` 模型"
             )
 
     # 404 资源不存在
