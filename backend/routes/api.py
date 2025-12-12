@@ -494,16 +494,22 @@ def update_history(record_id):
 
         # 如果状态为 completed，自动触发同步到 Notion
         if status == 'completed':
+            logger.info(f"📋 检测到历史记录状态更新为 completed: {record_id}")
             try:
                 sync_service = get_sync_service()
+                logger.debug(f"同步服务状态: enabled={sync_service.enabled if sync_service else None}, service={sync_service is not None}")
+                
                 if sync_service and sync_service.enabled:
                     # 异步触发同步（不阻塞响应）
                     import threading
                     def sync_async():
                         try:
+                            logger.info(f"🔄 开始同步记录到 Notion: {record_id}")
                             result = sync_service.sync_record_to_notion(record_id)
                             if result.get("success"):
                                 logger.info(f"✅ 记录 {record_id} 自动同步成功")
+                                logger.info(f"   - COS URLs: {len(result.get('cos_urls', []))} 张图片")
+                                logger.info(f"   - Notion 页面: {result.get('notion_page_url', 'N/A')}")
                             else:
                                 logger.warning(f"⚠️  记录 {record_id} 自动同步失败: {result.get('error')}")
                         except Exception as e:
@@ -511,9 +517,14 @@ def update_history(record_id):
                     
                     thread = threading.Thread(target=sync_async, daemon=True)
                     thread.start()
-                    logger.info(f"🔄 已触发记录 {record_id} 的自动同步")
+                    logger.info(f"🔄 已触发记录 {record_id} 的自动同步（后台异步执行）")
+                else:
+                    if not sync_service:
+                        logger.warning(f"⚠️  同步服务未初始化，跳过同步: {record_id}")
+                    elif not sync_service.enabled:
+                        logger.warning(f"⚠️  同步服务已禁用，跳过同步: {record_id}")
             except Exception as e:
-                logger.warning(f"触发自动同步失败: {e}")
+                logger.error(f"❌ 触发自动同步失败: {e}", exc_info=True)
 
         return jsonify({
             "success": True

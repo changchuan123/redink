@@ -68,6 +68,9 @@ def create_app():
 
     # 启动时验证配置
     _validate_config_on_startup(logger)
+    
+    # 启动时初始化同步服务（检查配置）
+    _init_sync_service_on_startup(logger)
 
     # 根据是否有前端构建产物决定根路由行为
     if frontend_dist.exists():
@@ -148,6 +151,27 @@ def _validate_config_on_startup(logger):
         logger.warning("⚠️  image_providers.yaml 不存在，将使用默认配置")
 
     logger.info("✅ 配置检查完成")
+
+
+def _init_sync_service_on_startup(logger):
+    """启动时初始化同步服务（检查配置）"""
+    try:
+        from backend.services.sync_service import get_sync_service
+        sync_service = get_sync_service()
+        
+        if sync_service:
+            if sync_service.enabled:
+                logger.info("✅ 同步服务已启用")
+                if sync_service.notion_sync:
+                    logger.info(f"✅ Notion 同步服务已初始化: database_id={sync_service.notion_sync.database_id[:8]}...")
+                else:
+                    logger.warning("⚠️  Notion 同步服务未初始化，请检查环境变量配置")
+            else:
+                logger.warning("⚠️  同步服务已禁用（SYNC_ENABLED=false 或配置未设置）")
+        else:
+            logger.warning("⚠️  同步服务初始化失败")
+    except Exception as e:
+        logger.warning(f"⚠️  同步服务初始化检查失败: {e}")
 
 
 if __name__ == '__main__':
