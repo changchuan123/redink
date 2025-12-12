@@ -10,6 +10,7 @@ from flask import Blueprint, request, jsonify, Response, send_file
 from backend.services.outline import get_outline_service
 from backend.services.image import get_image_service
 from backend.services.history import get_history_service
+from backend.services.sync_service import get_sync_service
 
 logger = logging.getLogger(__name__)
 
@@ -491,6 +492,29 @@ def update_history(record_id):
                 "error": f"更新历史记录失败：{record_id}\n可能原因：记录不存在或数据格式错误"
             }), 404
 
+        # 如果状态为 completed，自动触发同步到 Notion
+        if status == 'completed':
+            try:
+                sync_service = get_sync_service()
+                if sync_service and sync_service.enabled:
+                    # 异步触发同步（不阻塞响应）
+                    import threading
+                    def sync_async():
+                        try:
+                            result = sync_service.sync_record_to_notion(record_id)
+                            if result.get("success"):
+                                logger.info(f"✅ 记录 {record_id} 自动同步成功")
+                            else:
+                                logger.warning(f"⚠️  记录 {record_id} 自动同步失败: {result.get('error')}")
+                        except Exception as e:
+                            logger.error(f"❌ 记录 {record_id} 自动同步异常: {e}", exc_info=True)
+                    
+                    thread = threading.Thread(target=sync_async, daemon=True)
+                    thread.start()
+                    logger.info(f"🔄 已触发记录 {record_id} 的自动同步")
+            except Exception as e:
+                logger.warning(f"触发自动同步失败: {e}")
+
         return jsonify({
             "success": True
         }), 200
@@ -573,6 +597,48 @@ def get_history_stats():
         return jsonify({
             "success": False,
             "error": f"获取历史记录统计失败。\n错误详情: {error_msg}"
+        }), 500
+
+
+# ==================== 同步相关 API ====================
+
+@api_bp.route('/sync/<record_id>', methods=['POST'])
+def sync_to_notion(record_id):
+    """手动同步历史记录到 Notion"""
+    try:
+        _log_request('/sync', {'record_id': record_id})
+
+        sync_service = get_sync_service()
+        if not sync_service or not sync_service.enabled:
+            return jsonify({
+                "success": False,
+                "error": "同步服务未启用或未配置"
+            }), 400
+
+        logger.info(f"🔄 开始同步记录到 Notion: {record_id}")
+        result = sync_service.sync_record_to_notion(record_id)
+
+        if result.get("success"):
+            logger.info(f"✅ 同步成功: {record_id}")
+            return jsonify({
+                "success": True,
+                "cos_urls": result.get("cos_urls", []),
+                "notion_page_id": result.get("notion_page_id"),
+                "notion_page_url": result.get("notion_page_url")
+            }), 200
+        else:
+            logger.error(f"❌ 同步失败: {result.get('error')}")
+            return jsonify({
+                "success": False,
+                "error": result.get("error", "同步失败")
+            }), 500
+
+    except Exception as e:
+        _log_error('/sync', e)
+        error_msg = str(e)
+        return jsonify({
+            "success": False,
+            "error": f"同步失败。\n错误详情: {error_msg}"
         }), 500
 
 

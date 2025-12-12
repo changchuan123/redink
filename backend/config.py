@@ -14,6 +14,12 @@ class Config:
     CORS_ORIGINS = os.getenv('CORS_ORIGINS', 'http://localhost:5173,http://localhost:3000').split(',')
     OUTPUT_DIR = os.getenv('OUTPUT_DIR', 'output')
 
+    # 同步服务配置
+    COS_SERVICE_URL = os.getenv('COS_SERVICE_URL', 'http://212.64.57.87:10009/upload-to-cos')
+    NOTION_INTEGRATION_TOKEN = os.getenv('NOTION_INTEGRATION_TOKEN', '')
+    NOTION_DATABASE_ID = os.getenv('NOTION_DATABASE_ID', '')
+    SYNC_ENABLED = os.getenv('SYNC_ENABLED', 'true').lower() == 'true'
+
     _image_providers_config = None
     _text_providers_config = None
 

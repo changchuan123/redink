@@ -378,7 +378,76 @@ providers:
 
 ---
 
+## 🔄 Notion 同步功能
+
+项目支持将生成的笔记和图片自动同步到 Notion 数据库进行备份。
+
+### 功能特性
+
+- ✅ **自动同步**：图片生成完成后自动上传到 COS 并同步到 Notion
+- ✅ **COS 图床**：使用现有 COS 服务上传图片
+- ✅ **Notion 备份**：完整保存标题、大纲内容和图片链接
+- ✅ **手动同步**：支持通过 API 手动触发同步
+- ✅ **异步处理**：不阻塞用户操作
+
+### 快速配置
+
+1. **设置环境变量**（在 `.env` 文件或系统环境变量中）：
+
+```bash
+COS_SERVICE_URL=http://212.64.57.87:10009/upload-to-cos
+NOTION_INTEGRATION_TOKEN=你的Notion Token
+NOTION_DATABASE_ID=你的Database ID
+SYNC_ENABLED=true
+```
+
+2. **配置 Notion 数据库**：
+   - 创建包含以下字段的数据库：`标题`、`笔记`、`图片`、`上传时间`
+   - 将 Integration 添加到数据库
+
+详细配置说明请参考：[Notion同步功能配置说明.md](./Notion同步功能配置说明.md)
+
+---
+
 ## 📝 更新日志
+
+### 2025-01-XX - Notion 同步功能
+
+**会话目的：** 实现笔记和图片自动同步到 Notion 数据库功能
+
+**完成的主要任务：**
+1. ✅ 创建 COS 上传服务（调用现有 COS 图床服务）
+2. ✅ 创建 Notion 同步服务（使用 Notion API）
+3. ✅ 实现自动同步功能（图片生成完成后自动触发）
+4. ✅ 添加手动同步 API 接口
+5. ✅ 添加配置管理和环境变量支持
+6. ✅ 完善错误处理和日志记录
+
+**关键决策和解决方案：**
+- 使用现有 COS 图床服务（`http://212.64.57.87:10009/upload-to-cos`），无需重新部署
+- 异步处理同步流程，不阻塞用户操作
+- 支持自动同步和手动同步两种方式
+- 完善的错误处理，失败不影响历史记录保存
+
+**使用的技术栈：**
+- Python requests（HTTP 请求）
+- Notion API（官方 REST API）
+- 异步线程处理
+
+**修改的文件：**
+- `backend/services/cos_uploader.py` (新建)
+- `backend/services/notion_sync.py` (新建)
+- `backend/services/sync_service.py` (新建)
+- `backend/routes/api.py` (添加同步 API)
+- `backend/config.py` (添加同步配置)
+- `frontend/src/api/index.ts` (添加同步 API 调用)
+- `Notion同步功能配置说明.md` (新建)
+- `Notion同步功能可行性报告.md` (新建)
+
+**配置信息：**
+- COS 服务：`http://212.64.57.87:10009/upload-to-cos`
+- Notion Database ID：`2c771735fbc5802e8474d17cda149056`
+- Notion 数据库链接：https://www.notion.so/Redink-2c771735fbc5802e8474d17cda149056
 
 ### 2025-11-28 - GitHub 部署
 

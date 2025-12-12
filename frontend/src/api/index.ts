@@ -528,3 +528,17 @@ export async function testConnection(config: {
   const response = await axios.post(`${API_BASE_URL}/config/test`, config)
   return response.data
 }
+
+// ==================== 同步相关 API ====================
+
+// 同步历史记录到 Notion
+export async function syncToNotion(recordId: string): Promise<{
+  success: boolean
+  cos_urls?: string[]
+  notion_page_id?: string
+  notion_page_url?: string
+  error?: string
+}> {
+  const response = await axios.post(`${API_BASE_URL}/sync/${recordId}`)
+  return response.data
+}
