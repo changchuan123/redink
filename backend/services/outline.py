@@ -74,13 +74,22 @@ class OutlineService:
                 "解决方案：在系统设置中选择一个可用的服务商"
             )
 
-        provider_config = providers.get(active_provider, {})
+        provider_config = providers.get(active_provider, {}).copy()
+
+        # 优先从环境变量读取 API Key（如果配置了环境变量）
+        env_key_name = f"{active_provider.upper()}_API_KEY"
+        env_api_key = os.getenv(env_key_name)
+        if env_api_key:
+            provider_config['api_key'] = env_api_key
+            logger.debug(f"从环境变量读取 API Key: {env_key_name}")
 
         if not provider_config.get('api_key'):
             logger.error(f"文本服务商 [{active_provider}] 未配置 API Key")
             raise ValueError(
                 f"文本服务商 {active_provider} 未配置 API Key\n"
-                "解决方案：在系统设置页面编辑该服务商，填写 API Key"
+                "解决方案：\n"
+                "1. 在系统设置页面编辑该服务商，填写 API Key\n"
+                f"2. 或设置环境变量 {env_key_name}"
             )
 
         logger.info(f"使用文本服务商: {active_provider} (type={provider_config.get('type')})")
