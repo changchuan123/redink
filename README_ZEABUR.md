@@ -20,14 +20,14 @@
 #### 文本生成服务商（DeepSeek）
 - 服务商名称：`deepseek`
 - 类型：`openai_compatible`
-- API Key：`sk-be7d4e5786a044f98f6231ab18ff52a9`
+- API Key：`你的DeepSeek API Key`（从 https://platform.deepseek.com/ 获取）
 - Base URL：`https://api.deepseek.com/v1`
 - Model：`deepseek-chat`
 
 #### 图片生成服务商（Gemini）
 - 服务商名称：`gemini`
 - 类型：`google_genai`
-- API Key：`AIzaSyBK3EIfnkKg1pejpcPZd8BA7MH2LHMQSss`
+- API Key：`你的Gemini API Key`（从 https://aistudio.google.com/app/apikey 获取）
 - Model：`gemini-3-pro-image-preview`
 
 ### 3. 开始使用
@@ -65,4 +65,5 @@ Zeabur 会自动设置以下环境变量：
 ---
 
 **立即部署**: [https://zeabur.com/projects](https://zeabur.com/projects)
+
 

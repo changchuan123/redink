@@ -25,7 +25,7 @@
 3. 在 **文本生成服务商** 中添加 DeepSeek：
    - 服务商名称：`deepseek`
    - 类型：`openai_compatible`
-   - API Key：`sk-be7d4e5786a044f98f6231ab18ff52a9`
+   - API Key：`你的DeepSeek API Key`（从 https://platform.deepseek.com/ 获取）
    - Base URL：`https://api.deepseek.com/v1`
    - Model：`deepseek-chat`
    - 设置为激活服务商
@@ -33,7 +33,7 @@
 4. 在 **图片生成服务商** 中添加 Gemini：
    - 服务商名称：`gemini`
    - 类型：`google_genai`
-   - API Key：`AIzaSyBK3EIfnkKg1pejpcPZd8BA7MH2LHMQSss`
+   - API Key：`你的Gemini API Key`（从 https://aistudio.google.com/app/apikey 获取）
    - Model：`gemini-3-pro-image-preview`
    - 设置为激活服务商
 
@@ -46,7 +46,7 @@ active_provider: deepseek
 providers:
   deepseek:
     type: openai_compatible
-    api_key: sk-be7d4e5786a044f98f6231ab18ff52a9
+    api_key: 你的DeepSeek API Key
     base_url: https://api.deepseek.com/v1
     model: deepseek-chat
 ```
@@ -57,7 +57,7 @@ active_provider: gemini
 providers:
   gemini:
     type: google_genai
-    api_key: AIzaSyBK3EIfnkKg1pejpcPZd8BA7MH2LHMQSss
+    api_key: 你的Gemini API Key
     model: gemini-3-pro-image-preview
     high_concurrency: false
 ```
