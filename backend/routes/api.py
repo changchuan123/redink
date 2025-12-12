@@ -477,6 +477,10 @@ def update_history(record_id):
         status = data.get('status')
         thumbnail = data.get('thumbnail')
 
+        logger.info(f"📝 收到历史记录更新请求: record_id={record_id}, status={status}")
+        if images:
+            logger.info(f"   图片信息: task_id={images.get('task_id')}, generated_count={len(images.get('generated', []))}")
+
         history_service = get_history_service()
         success = history_service.update_record(
             record_id,
@@ -487,10 +491,13 @@ def update_history(record_id):
         )
 
         if not success:
+            logger.error(f"❌ 更新历史记录失败: {record_id}")
             return jsonify({
                 "success": False,
                 "error": f"更新历史记录失败：{record_id}\n可能原因：记录不存在或数据格式错误"
             }), 404
+
+        logger.info(f"✅ 历史记录更新成功: {record_id}")
 
         # 如果状态为 completed，自动触发同步到 Notion
         if status == 'completed':

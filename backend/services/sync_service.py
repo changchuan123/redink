@@ -86,31 +86,39 @@ class SyncService:
             task_id = record.get("images", {}).get("task_id")
             image_files = record.get("images", {}).get("generated", [])
             
+            logger.info(f"📋 准备同步记录 {record_id}: task_id={task_id}, 图片数量={len(image_files) if image_files else 0}")
+            
             if not task_id or not image_files:
-                logger.warning(f"记录 {record_id} 没有图片，跳过 COS 上传")
+                logger.warning(f"⚠️  记录 {record_id} 没有图片，跳过 COS 上传")
                 cos_urls = []
             else:
+                logger.info(f"📤 开始上传 {len(image_files)} 张图片到 COS...")
                 # 上传图片到 COS
                 cos_result = self._upload_images_to_cos(task_id, image_files, record.get("title", "未命名"))
                 
                 if not cos_result.get("success"):
+                    logger.error(f"❌ COS 上传失败: {cos_result.get('error')}")
                     return {
                         "success": False,
                         "error": f"COS 上传失败: {cos_result.get('error')}"
                     }
                 
                 cos_urls = cos_result.get("urls", [])
+                logger.info(f"✅ COS 上传成功: {len(cos_urls)} 张图片")
 
             # 同步到 Notion
             if self.notion_sync is None:
+                logger.error(f"❌ Notion 同步服务未配置")
                 return {
                     "success": False,
                     "error": "Notion 同步服务未配置"
                 }
 
+            logger.info(f"📝 开始同步到 Notion: title={record.get('title', '未命名')[:50]}...")
             notion_result = self.notion_sync.sync_record(record, cos_urls)
             
             if not notion_result.get("success"):
+                logger.error(f"❌ Notion 同步失败: {notion_result.get('error')}")
                 return {
                     "success": False,
                     "error": f"Notion 同步失败: {notion_result.get('error')}",
@@ -118,6 +126,8 @@ class SyncService:
                 }
 
             logger.info(f"✅ 记录 {record_id} 同步成功")
+            logger.info(f"   - Notion 页面 ID: {notion_result.get('page_id', 'N/A')}")
+            logger.info(f"   - Notion 页面 URL: {notion_result.get('page_url', 'N/A')}")
             return {
                 "success": True,
                 "cos_urls": cos_urls,
@@ -183,11 +193,12 @@ class SyncService:
                 cos_filename = f"{safe_filename}-{task_id[:8]}-{index + 1}"
                 
                 # 上传到 COS
+                logger.debug(f"📤 上传图片 {index + 1}/{len(image_files)}: {filename} -> {cos_filename}")
                 result = self.cos_uploader.upload_from_file(file_path, cos_filename)
                 
                 if result.get("success"):
                     upload_results.append(result.get("url"))
-                    logger.info(f"✅ 图片 {filename} 上传成功")
+                    logger.info(f"✅ 图片 {filename} 上传成功: {result.get('url', 'N/A')[:50]}...")
                 else:
                     logger.error(f"❌ 图片 {filename} 上传失败: {result.get('error')}")
 
