@@ -156,6 +156,15 @@ def _validate_config_on_startup(logger):
 def _init_sync_service_on_startup(logger):
     """启动时初始化同步服务（检查配置）"""
     try:
+        from backend.config import Config
+        
+        # 先检查环境变量
+        logger.info("🔍 检查同步服务配置...")
+        logger.info(f"   - SYNC_ENABLED: {Config.SYNC_ENABLED}")
+        logger.info(f"   - COS_SERVICE_URL: {Config.COS_SERVICE_URL}")
+        logger.info(f"   - NOTION_INTEGRATION_TOKEN: {'已设置' if Config.NOTION_INTEGRATION_TOKEN else '未设置'}")
+        logger.info(f"   - NOTION_DATABASE_ID: {'已设置' if Config.NOTION_DATABASE_ID else '未设置'}")
+        
         from backend.services.sync_service import get_sync_service
         sync_service = get_sync_service()
         
@@ -166,12 +175,17 @@ def _init_sync_service_on_startup(logger):
                     logger.info(f"✅ Notion 同步服务已初始化: database_id={sync_service.notion_sync.database_id[:8]}...")
                 else:
                     logger.warning("⚠️  Notion 同步服务未初始化，请检查环境变量配置")
+                    logger.warning("   需要设置: NOTION_INTEGRATION_TOKEN 和 NOTION_DATABASE_ID")
             else:
-                logger.warning("⚠️  同步服务已禁用（SYNC_ENABLED=false 或配置未设置）")
+                logger.warning("⚠️  同步服务已禁用")
+                if not Config.NOTION_INTEGRATION_TOKEN or not Config.NOTION_DATABASE_ID:
+                    logger.warning("   原因: Notion 配置未设置（NOTION_INTEGRATION_TOKEN 或 NOTION_DATABASE_ID 为空）")
+                elif not Config.SYNC_ENABLED:
+                    logger.warning("   原因: SYNC_ENABLED=false")
         else:
             logger.warning("⚠️  同步服务初始化失败")
     except Exception as e:
-        logger.warning(f"⚠️  同步服务初始化检查失败: {e}")
+        logger.error(f"❌ 同步服务初始化检查失败: {e}", exc_info=True)
 
 
 if __name__ == '__main__':
