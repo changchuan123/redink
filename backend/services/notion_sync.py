@@ -113,7 +113,8 @@ class NotionSync:
                 "properties": properties
             }
 
-            logger.debug(f"创建 Notion 页面: title={title[:50]}...")
+            logger.info(f"📝 写入 Notion 数据库: title={title[:50]}... (数据库ID: {self.database_id[:8]}...)")
+            logger.debug(f"   请求体: properties keys={list(properties.keys())}, 图片数量={len(image_urls) if image_urls else 0}")
             response = requests.post(
                 f"{self.base_url}/pages",
                 headers=self.headers,
@@ -133,7 +134,7 @@ class NotionSync:
             page_id = result.get("id")
             page_url = result.get("url", "")
 
-            logger.info(f"✅ Notion 页面创建成功: {page_id[:8]}...")
+            logger.info(f"✅ 已写入 Notion 数据库: 页面ID={page_id[:8]}..., URL={page_url}")
             return {
                 "success": True,
                 "page_id": page_id,
