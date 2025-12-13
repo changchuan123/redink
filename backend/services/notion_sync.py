@@ -141,6 +141,13 @@ class NotionSync:
 
             # 添加图片（如果有）
             if image_urls and len(image_urls) > 0:
+                # Notion API 对 files 字段没有明确的官方限制，但建议不超过 100 个文件
+                # 如果超过 100 个，只取前 100 个并记录警告
+                max_files = 100
+                if len(image_urls) > max_files:
+                    logger.warning(f"⚠️  图片数量 ({len(image_urls)}) 超过建议限制 ({max_files})，只同步前 {max_files} 张")
+                    image_urls = image_urls[:max_files]
+                
                 files = []
                 for index, url in enumerate(image_urls):
                     files.append({
@@ -153,6 +160,7 @@ class NotionSync:
                 properties["图片"] = {
                     "files": files
                 }
+                logger.debug(f"   添加 {len(files)} 张图片到 Notion 页面")
 
             # 构建请求体
             payload = {
