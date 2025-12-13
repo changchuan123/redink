@@ -83,13 +83,7 @@ class NotionSync:
                     ]
                 },
                 "笔记": {
-                    "rich_text": [
-                        {
-                            "text": {
-                                "content": notes
-                            }
-                        }
-                    ]
+                    "rich_text": self._split_text_for_notion(notes)
                 },
                 "上传时间": {
                     "date": {
