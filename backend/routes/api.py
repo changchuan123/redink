@@ -499,9 +499,9 @@ def update_history(record_id):
 
         logger.info(f"✅ 历史记录更新成功: {record_id}")
 
-        # 如果状态为 completed，自动触发同步到 Notion
-        if status == 'completed':
-            logger.info(f"📋 检测到历史记录状态更新为 completed: {record_id}")
+        # 如果状态为 completed 或 partial（有图片生成），自动触发同步到 Notion
+        if status in ['completed', 'partial']:
+            logger.info(f"📋 检测到历史记录状态更新为 {status}: {record_id}")
             try:
                 sync_service = get_sync_service()
                 logger.debug(f"同步服务状态: enabled={sync_service.enabled if sync_service else None}, service={sync_service is not None}")
