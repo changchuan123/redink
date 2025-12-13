@@ -43,6 +43,53 @@ class NotionSync:
         elif not self.integration_token.startswith(('secret_', 'ntn_')):
             logger.warning(f"⚠️  Notion Token 格式可能不正确（应以 secret_ 或 ntn_ 开头）")
 
+    def _split_text_for_notion(self, text: str, max_length: int = 2000) -> List[Dict[str, Any]]:
+        """
+        将长文本分割成多个不超过 max_length 字符的文本块
+        Notion API 限制：每个 rich_text 文本块的 content 不能超过 2000 字符
+        
+        Args:
+            text: 原始文本
+            max_length: 每个文本块的最大长度（默认 2000）
+        
+        Returns:
+            文本块列表，每个元素是一个 rich_text 文本对象
+        """
+        if not text:
+            return []
+        
+        # 如果文本长度不超过限制，直接返回
+        if len(text) <= max_length:
+            return [{"text": {"content": text}}]
+        
+        # 分割文本
+        text_blocks = []
+        current_pos = 0
+        text_length = len(text)
+        
+        while current_pos < text_length:
+            # 计算当前块的结束位置
+            end_pos = min(current_pos + max_length, text_length)
+            
+            # 尝试在合适的位置分割（避免在单词中间分割）
+            if end_pos < text_length:
+                # 向前查找换行符、句号等自然分割点
+                for separator in ['\n\n', '\n', '。', '. ', '！', '! ', '？', '? ']:
+                    last_sep_pos = text.rfind(separator, current_pos, end_pos)
+                    if last_sep_pos > current_pos:
+                        end_pos = last_sep_pos + len(separator)
+                        break
+            
+            # 提取当前块
+            block_text = text[current_pos:end_pos]
+            text_blocks.append({"text": {"content": block_text}})
+            
+            # 移动到下一个块
+            current_pos = end_pos
+        
+        logger.debug(f"文本分割: 总长度={text_length}, 分割成 {len(text_blocks)} 个文本块")
+        return text_blocks
+
     def create_page(
         self,
         title: str,
