@@ -133,6 +133,14 @@ class NotionSync:
             if response.status_code not in [200, 201]:
                 error_msg = f"Notion API 返回错误: {response.status_code} - {response.text}"
                 logger.error(error_msg)
+                if response.status_code == 401:
+                    logger.error("❌ Notion API Token 无效！")
+                    logger.error("   请检查：")
+                    logger.error("   1. Zeabur 环境变量 NOTION_INTEGRATION_TOKEN 是否正确设置")
+                    logger.error("   2. Token 是否有多余的空格或换行符")
+                    logger.error("   3. Token 是否已过期或被撤销")
+                    logger.error("   4. Notion Integration 是否有访问数据库的权限")
+                    logger.error(f"   Token 前缀: {self.integration_token[:10]}...")
                 return {
                     "success": False,
                     "error": error_msg
