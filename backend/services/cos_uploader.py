@@ -189,7 +189,17 @@ class COSUploader:
             # 添加 data URL 前缀
             image_base64 = f"data:{mime_type};base64,{image_base64}"
 
-            return self.upload_from_base64(image_base64, filename)
+            # 根据文件大小调整超时时间（大文件需要更长时间）
+            file_size_mb = len(image_data) / (1024 * 1024)
+            timeout = 120  # 默认 120 秒
+            if file_size_mb > 5:
+                timeout = 180  # 大于 5MB 使用 180 秒
+            elif file_size_mb > 10:
+                timeout = 240  # 大于 10MB 使用 240 秒
+            
+            logger.debug(f"图片大小: {file_size_mb:.2f}MB, 超时设置: {timeout}秒")
+
+            return self.upload_from_base64(image_base64, filename, timeout=timeout)
 
         except FileNotFoundError:
             error_msg = f"文件不存在: {file_path}"
