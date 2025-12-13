@@ -24,16 +24,24 @@ class NotionSync:
             database_id: Notion Database ID
             api_version: Notion API 版本
         """
-        self.integration_token = integration_token
-        self.database_id = database_id
+        self.integration_token = integration_token.strip() if integration_token else ""
+        self.database_id = database_id.strip() if database_id else ""
         self.api_version = api_version
         self.base_url = "https://api.notion.com/v1"
         self.headers = {
-            "Authorization": f"Bearer {integration_token}",
+            "Authorization": f"Bearer {self.integration_token}",
             "Content-Type": "application/json",
             "Notion-Version": api_version
         }
-        logger.info(f"Notion 同步服务初始化: database_id={database_id[:8]}...")
+        # 记录 Token 前8个字符用于调试（不暴露完整 Token）
+        token_preview = f"{self.integration_token[:8]}..." if self.integration_token else "未设置"
+        logger.info(f"Notion 同步服务初始化: database_id={self.database_id[:8]}..., token={token_preview}")
+        
+        # 验证 Token 格式
+        if not self.integration_token:
+            logger.error("❌ Notion Integration Token 为空")
+        elif not self.integration_token.startswith(('secret_', 'ntn_')):
+            logger.warning(f"⚠️  Notion Token 格式可能不正确（应以 secret_ 或 ntn_ 开头）")
 
     def create_page(
         self,
@@ -362,6 +370,18 @@ def get_notion_sync(
     
     if not integration_token or not database_id:
         logger.warning("Notion 配置未设置，跳过 Notion 同步")
+        if not integration_token:
+            logger.warning("  - NOTION_INTEGRATION_TOKEN 为空")
+        if not database_id:
+            logger.warning("  - NOTION_DATABASE_ID 为空")
+        return None
+    
+    # 验证 Token 格式
+    integration_token = integration_token.strip()
+    if not integration_token.startswith(('secret_', 'ntn_')):
+        logger.error(f"❌ Notion Token 格式错误！Token 应以 'secret_' 或 'ntn_' 开头")
+        logger.error(f"   当前 Token 前缀: {integration_token[:10]}...")
+        logger.error("   请检查 Zeabur 环境变量中的 NOTION_INTEGRATION_TOKEN 是否正确")
         return None
     
     if _service_instance is None:
