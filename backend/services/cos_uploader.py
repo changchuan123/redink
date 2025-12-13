@@ -24,14 +24,18 @@ class COSUploader:
     def upload_from_base64(
         self,
         image_base64: str,
-        filename: str
+        filename: str,
+        max_retries: int = 3,
+        timeout: int = 120
     ) -> Dict[str, Any]:
         """
-        从 Base64 上传图片到 COS
+        从 Base64 上传图片到 COS（带重试机制）
 
         Args:
             image_base64: Base64 编码的图片（可以带或不带 data URL 前缀）
             filename: 文件名（不含扩展名，服务端会自动添加）
+            max_retries: 最大重试次数（默认 3 次）
+            timeout: 超时时间（秒，默认 120 秒）
 
         Returns:
             {
@@ -40,68 +44,113 @@ class COSUploader:
                 "error": "错误信息" (失败时)
             }
         """
-        try:
-            # 确保 base64 字符串有 data URL 前缀
-            if not image_base64.startswith("data:image/"):
-                # 如果没有前缀，添加默认的 JPEG 前缀
-                image_base64 = f"data:image/jpeg;base64,{image_base64}"
+        last_error = None
+        
+        for attempt in range(1, max_retries + 1):
+            try:
+                # 确保 base64 字符串有 data URL 前缀
+                if not image_base64.startswith("data:image/"):
+                    # 如果没有前缀，添加默认的 JPEG 前缀
+                    image_base64 = f"data:image/jpeg;base64,{image_base64}"
 
-            payload = {
-                "imageBase64": image_base64,
-                "filename": filename
-            }
+                payload = {
+                    "imageBase64": image_base64,
+                    "filename": filename
+                }
 
-            logger.debug(f"上传图片到 COS: filename={filename}")
-            response = requests.post(
-                self.service_url,
-                json=payload,
-                timeout=30
-            )
+                if attempt > 1:
+                    logger.info(f"🔄 重试上传图片到 COS (第 {attempt}/{max_retries} 次): filename={filename}")
+                else:
+                    logger.debug(f"上传图片到 COS: filename={filename}")
+                
+                response = requests.post(
+                    self.service_url,
+                    json=payload,
+                    timeout=timeout
+                )
 
-            if response.status_code != 200:
-                error_msg = f"COS 服务返回错误: {response.status_code} - {response.text}"
-                logger.error(error_msg)
+                if response.status_code != 200:
+                    error_msg = f"COS 服务返回错误: {response.status_code} - {response.text}"
+                    logger.warning(f"⚠️  {error_msg} (尝试 {attempt}/{max_retries})")
+                    last_error = error_msg
+                    if attempt < max_retries:
+                        continue  # 重试
+                    else:
+                        logger.error(error_msg)
+                        return {
+                            "success": False,
+                            "error": error_msg
+                        }
+
+                result = response.json()
+                if "url" in result:
+                    if attempt > 1:
+                        logger.info(f"✅ 图片上传成功（重试 {attempt} 次后）: {result['url']}")
+                    else:
+                        logger.info(f"✅ 图片上传成功: {result['url']}")
+                    return {
+                        "success": True,
+                        "url": result["url"]
+                    }
+                else:
+                    error_msg = f"COS 服务返回格式错误: {result}"
+                    logger.warning(f"⚠️  {error_msg} (尝试 {attempt}/{max_retries})")
+                    last_error = error_msg
+                    if attempt < max_retries:
+                        continue  # 重试
+                    else:
+                        logger.error(error_msg)
+                        return {
+                            "success": False,
+                            "error": error_msg
+                        }
+
+            except requests.exceptions.Timeout:
+                error_msg = f"COS 上传超时（{timeout}秒）"
+                logger.warning(f"⚠️  {error_msg} (尝试 {attempt}/{max_retries})")
+                last_error = error_msg
+                if attempt < max_retries:
+                    import time
+                    wait_time = attempt * 2  # 递增等待时间：2秒、4秒、6秒
+                    logger.info(f"⏳ 等待 {wait_time} 秒后重试...")
+                    time.sleep(wait_time)
+                    continue  # 重试
+                else:
+                    logger.error(error_msg)
+                    return {
+                        "success": False,
+                        "error": error_msg
+                    }
+            except requests.exceptions.RequestException as e:
+                error_msg = f"COS 上传请求失败: {str(e)}"
+                logger.warning(f"⚠️  {error_msg} (尝试 {attempt}/{max_retries})")
+                last_error = error_msg
+                if attempt < max_retries:
+                    import time
+                    wait_time = attempt * 2
+                    logger.info(f"⏳ 等待 {wait_time} 秒后重试...")
+                    time.sleep(wait_time)
+                    continue  # 重试
+                else:
+                    logger.error(error_msg)
+                    return {
+                        "success": False,
+                        "error": error_msg
+                    }
+            except Exception as e:
+                error_msg = f"COS 上传异常: {str(e)}"
+                logger.error(error_msg, exc_info=True)
                 return {
                     "success": False,
                     "error": error_msg
                 }
-
-            result = response.json()
-            if "url" in result:
-                logger.info(f"✅ 图片上传成功: {result['url']}")
-                return {
-                    "success": True,
-                    "url": result["url"]
-                }
-            else:
-                error_msg = f"COS 服务返回格式错误: {result}"
-                logger.error(error_msg)
-                return {
-                    "success": False,
-                    "error": error_msg
-                }
-
-        except requests.exceptions.Timeout:
-            error_msg = "COS 上传超时（30秒）"
-            logger.error(error_msg)
-            return {
-                "success": False,
-                "error": error_msg
-            }
-        except requests.exceptions.RequestException as e:
-            error_msg = f"COS 上传请求失败: {str(e)}"
-            logger.error(error_msg)
-            return {
-                "success": False,
-                "error": error_msg
-            }
-        except Exception as e:
-            error_msg = f"COS 上传异常: {str(e)}"
-            logger.error(error_msg, exc_info=True)
-            return {
-                "success": False,
-                "error": error_msg
-            }
+        
+        # 所有重试都失败
+        logger.error(f"❌ 图片上传失败（已重试 {max_retries} 次）: {last_error}")
+        return {
+            "success": False,
+            "error": f"上传失败（已重试 {max_retries} 次）: {last_error}"
+        }
 
     def upload_from_file(
         self,
