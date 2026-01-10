@@ -280,37 +280,26 @@ def generate_image():
     logger.info(f"[Gemini/Image] 图像生成请求: 模型={model}, prompt长度={len(prompt)}")
 
     try:
-        # 构建优化的图像生成提示词
-        if system_prompt:
-            full_prompt = f"{system_prompt}\n\n用户需求：{prompt}"
-        else:
-            # 默认图像生成提示词
-            default_image_prompt = """你是一个专业的 AI 图像生成助手。请根据用户的需求创作高质量的图像。
-
-图像生成要求：
-1. 艺术性：构图精美，色彩协调，具有美感
-2. 清晰度：图像清晰，细节丰富
-3. 创意性：富有创意，避免俗套
-4. 完整性：主题明确，元素完整
-
-请直接生成图像，不需要额外的文字说明。"""
-            full_prompt = f"{default_image_prompt}\n\n用户需求：{prompt}"
-
         # 使用 Google GenAI SDK 调用图像生成
         # 参考: https://ai.google.dev/gemini-api/docs/image-generation
-        # gemini-3-pro-image-preview 是专用的图像生成模型
         from google.genai import types
 
-        # 强制使用专用图像模型
+        # 使用专用图像模型，简化提示词加快生成速度
         image_model = "gemini-3-pro-image-preview"
+
+        # 如果有系统提示词，添加到 prompt 前面
+        if system_prompt:
+            final_prompt = f"{system_prompt}\n\n{prompt}"
+        else:
+            final_prompt = prompt
 
         response = client.models.generate_content(
             model=image_model,
-            contents=full_prompt,
+            contents=final_prompt,
             config=types.GenerateContentConfig(
                 image_config=types.ImageConfig(
                     aspect_ratio="1:1",
-                    image_size="2K"
+                    image_size="1K"  # 使用 1K 分辨率加快生成速度
                 )
             )
         )
