@@ -1,10 +1,11 @@
 """
 Gemini API 中继路由
 用于飞书 Aily 助手调用 Gemini API
+使用 Google GenAI Python SDK
 """
 import logging
-import requests
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, current_app
+from google import genai
 from functools import wraps
 
 # 创建蓝图
@@ -12,26 +13,22 @@ gemini_bp = Blueprint('gemini', __name__, url_prefix='/api/gemini')
 
 logger = logging.getLogger(__name__)
 
-# Gemini API 配置
-GEMINI_API_BASE = "https://generativelanguage.googleapis.com/v1beta"
-GEMINI_API_KEY = None  # 从环境变量读取
-
 
 def init_gemini_config(app):
     """初始化 Gemini 配置"""
-    global GEMINI_API_KEY
-    GEMINI_API_KEY = app.config.get('GEMINI_API_KEY')
-    if GEMINI_API_KEY:
-        logger.info(f"✅ Gemini API 已配置: {GEMINI_API_KEY[:7]}...")
+    api_key = app.config.get('GEMINI_API_KEY')
+    if api_key:
+        logger.info(f"✅ Gemini API 已配置: {api_key[:7]}...")
     else:
         logger.warning("⚠️  Gemini API Key 未配置")
 
-    # 检查代理配置
-    http_proxy = app.config.get('HTTP_PROXY') or app.config.get('HTTPS_PROXY')
-    if http_proxy:
-        logger.info(f"✅ 已配置代理: {http_proxy}")
-    else:
-        logger.info("ℹ️  未配置代理，直接连接 Gemini API")
+
+def get_genai_client():
+    """获取 Gemini 客户端"""
+    api_key = current_app.config.get('GEMINI_API_KEY')
+    if not api_key:
+        return None
+    return genai.Client(api_key=api_key, vertexai=False)
 
 
 def handle_errors(f):
@@ -52,11 +49,12 @@ def handle_errors(f):
 @gemini_bp.route('/health', methods=['GET'])
 def health():
     """健康检查"""
+    api_key = current_app.config.get('GEMINI_API_KEY')
     return jsonify({
         "status": "ok",
         "service": "Gemini Relay API",
-        "hasApiKey": bool(GEMINI_API_KEY),
-        "apiKeyPrefix": GEMINI_API_KEY[:7] + "..." if GEMINI_API_KEY else "not-set"
+        "hasApiKey": bool(api_key),
+        "apiKeyPrefix": api_key[:7] + "..." if api_key else "not-set"
     })
 
 
@@ -90,7 +88,8 @@ def list_models():
 @handle_errors
 def generate():
     """完整的 Gemini 生成接口"""
-    if not GEMINI_API_KEY:
+    client = get_genai_client()
+    if not client:
         return jsonify({
             "success": False,
             "error": "服务器配置错误：缺少 Gemini API Key"
@@ -99,8 +98,6 @@ def generate():
     data = request.get_json()
     model = data.get('model', 'gemini-1.5-flash')
     contents = data.get('contents')
-    generation_config = data.get('generationConfig', {})
-    safety_settings = data.get('safetySettings', [])
 
     # 验证参数
     if not contents or not isinstance(contents, list) or len(contents) == 0:
@@ -109,52 +106,40 @@ def generate():
             "error": "参数错误：缺少 contents 字段"
         }), 400
 
-    # 构建请求
-    api_url = f"{GEMINI_API_BASE}/models/{model}:generateContent?key={GEMINI_API_KEY}"
-
-    # 正确构建请求体
-    request_body = {"contents": contents}
-    if generation_config:
-        request_body["generationConfig"] = generation_config
-    if safety_settings:
-        request_body["safetySettings"] = safety_settings
-
     logger.info(f"[Gemini] 请求: 模型={model}, 内容长度={len(str(contents))}")
 
-    # 调用 Gemini API
     try:
-        # 配置代理
-        proxies = None
-        http_proxy = app.config.get('HTTP_PROXY') or app.config.get('HTTPS_PROXY') if hasattr(app, 'config') else None
-        if http_proxy:
-            proxies = {
-                'http': http_proxy,
-                'https': http_proxy
-            }
-            logger.info(f"[Gemini] 使用代理: {http_proxy}")
-
-        response = requests.post(
-            api_url,
-            json=request_body,
-            headers={'Content-Type': 'application/json'},
-            timeout=60,
-            proxies=proxies
+        # 使用 Google GenAI SDK 调用
+        response = client.models.generate_content(
+            model=model,
+            contents=contents
         )
-        response.raise_for_status()
 
-        result = response.json()
-        logger.info(f"[Gemini] 成功: 状态码={response.status_code}")
+        logger.info(f"[Gemini] 成功: 状态=完成")
+
+        # 构建响应
+        result = {
+            "candidates": [
+                {
+                    "content": {
+                        "parts": [{"text": response.text}],
+                        "role": response.candidates[0].content.role if response.candidates else "model"
+                    },
+                    "finishReason": response.candidates[0].finish_reason.name if response.candidates else "STOP"
+                }
+            ]
+        }
 
         return jsonify({
             "success": True,
             "data": result,
             "meta": {
                 "model": model,
-                "timestamp": requests.utils.iso8601_to_datetime(response.headers.get('Date', ''))
+                "text": response.text
             }
         })
 
-    except requests.exceptions.RequestException as e:
+    except Exception as e:
         logger.error(f"[Gemini] API 调用失败: {str(e)}")
         return jsonify({
             "success": False,
@@ -166,7 +151,8 @@ def generate():
 @handle_errors
 def aily():
     """飞书 Aily 简化接口"""
-    if not GEMINI_API_KEY:
+    client = get_genai_client()
+    if not client:
         return jsonify({
             "success": False,
             "error": "服务器配置错误：缺少 Gemini API Key"
@@ -182,46 +168,25 @@ def aily():
             "error": "缺少 prompt 参数"
         }), 400
 
-    # 构建请求
-    api_url = f"{GEMINI_API_BASE}/models/{model}:generateContent?key={GEMINI_API_KEY}"
-    request_body = {
-        "contents": [
-            {
-                "parts": [{"text": prompt}]
-            }
-        ]
-    }
-
     logger.info(f"[Gemini/Aily] 请求: 模型={model}, prompt长度={len(prompt)}")
 
     try:
-        response = requests.post(
-            api_url,
-            json=request_body,
-            headers={'Content-Type': 'application/json'},
-            timeout=60
+        # 使用 Google GenAI SDK 调用
+        response = client.models.generate_content(
+            model=model,
+            contents=prompt
         )
-        response.raise_for_status()
 
-        result = response.json()
-
-        # 提取文本
-        text = ""
-        if 'candidates' in result and len(result['candidates']) > 0:
-            content = result['candidates'][0].get('content', {})
-            parts = content.get('parts', [])
-            if parts and len(parts) > 0:
-                text = parts[0].get('text', '')
-
+        text = response.text if response else ""
         logger.info(f"[Gemini/Aily] 成功: 生成文本长度={len(text)}")
 
         return jsonify({
             "success": True,
             "text": text,
-            "fullResponse": result
+            "model": model
         })
 
-    except requests.exceptions.RequestException as e:
+    except Exception as e:
         logger.error(f"[Gemini/Aily] API 调用失败: {str(e)}")
         return jsonify({
             "success": False,
