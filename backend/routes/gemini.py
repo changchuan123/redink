@@ -221,7 +221,52 @@ def generate_image():
             "error": "服务器配置错误：缺少 Gemini API Key"
         }), 500
 
-    data = request.get_json()
+    # 调试：打印原始请求数据
+    logger.info(f"[Gemini/Image] 收到请求")
+    logger.info(f"  Content-Type: {request.content_type}")
+    logger.info(f"  Raw data length: {request.content_length if request.content_length else 0}")
+
+    # 尝试多种方式获取数据
+    data = None
+    try:
+        data = request.get_json(force=False, silent=True)
+        if data:
+            logger.info(f"  JSON data: {data}")
+        else:
+            # 如果 JSON 解析失败，尝试直接读取原始数据
+            raw_data = request.get_data(as_text=True)
+            logger.info(f"  Raw data: {raw_data[:200] if raw_data else 'empty'}")
+
+            # 如果原始数据也是空的，返回友好错误
+            if not raw_data or raw_data.strip() == '':
+                return jsonify({
+                    "success": False,
+                    "error": "请求体为空，请检查飞书 Aily 的 HTTP 请求节点配置",
+                    "help": {
+                        "expected_format": {
+                            "prompt": "图像描述文本",
+                            "model": "gemini-3-pro-image-preview (可选)"
+                        },
+                        "example": {
+                            "prompt": "一只可爱的猫咪",
+                            "model": "gemini-3-pro-image-preview"
+                        }
+                    }
+                }), 400
+    except Exception as e:
+        logger.error(f"  读取请求体失败: {str(e)}")
+        return jsonify({
+            "success": False,
+            "error": f"请求体格式错误: {str(e)}",
+            "help": "请确保飞书 Aily 的 HTTP 请求节点设置为 JSON 格式，Content-Type 为 application/json"
+        }), 400
+
+    if not data:
+        return jsonify({
+            "success": False,
+            "error": "无法解析请求体，请检查飞书 Aily 配置"
+        }), 400
+
     prompt = data.get('prompt')
     model = data.get('model', 'gemini-3-pro-image-preview')
     system_prompt = data.get('systemPrompt', '')
