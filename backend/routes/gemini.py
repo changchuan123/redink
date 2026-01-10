@@ -156,6 +156,7 @@ def aily():
     data = request.get_json()
     prompt = data.get('prompt')
     model = data.get('model', 'gemini-3-pro-preview')
+    system_prompt = data.get('systemPrompt', '')
 
     if not prompt:
         return jsonify({
@@ -166,10 +167,29 @@ def aily():
     logger.info(f"[Gemini/Aily] 文本生成请求: 模型={model}, prompt长度={len(prompt)}")
 
     try:
+        # 构建内容，如果有系统提示词则添加
+        if system_prompt:
+            contents = [
+                {"role": "user", "parts": [{"text": f"{system_prompt}\n\n用户问题：{prompt}"}]}
+            ]
+        else:
+            # 默认系统提示词
+            default_system_prompt = """你是一个专业、友好、高效的 AI 助手。你的特点是：
+1. 专业准确：提供准确、有价值的信息
+2. 简洁明了：回答简明扼要，避免冗余
+3. 结构清晰：使用合适的格式和结构
+4. 实用导向：提供可操作的建议和解决方案
+
+请用中文回答，除非用户明确要求使用其他语言。"""
+
+            contents = [
+                {"role": "user", "parts": [{"text": f"{default_system_prompt}\n\n用户问题：{prompt}"}]}
+            ]
+
         # 使用 Google GenAI SDK 调用
         response = client.models.generate_content(
             model=model,
-            contents=prompt
+            contents=contents
         )
 
         text = response.text if response else ""
@@ -204,6 +224,7 @@ def generate_image():
     data = request.get_json()
     prompt = data.get('prompt')
     model = data.get('model', 'gemini-3-pro-image-preview')
+    system_prompt = data.get('systemPrompt', '')
 
     if not prompt:
         return jsonify({
@@ -214,10 +235,26 @@ def generate_image():
     logger.info(f"[Gemini/Image] 图像生成请求: 模型={model}, prompt长度={len(prompt)}")
 
     try:
+        # 构建优化的图像生成提示词
+        if system_prompt:
+            full_prompt = f"{system_prompt}\n\n用户需求：{prompt}"
+        else:
+            # 默认图像生成提示词
+            default_image_prompt = """你是一个专业的 AI 图像生成助手。请根据用户的需求创作高质量的图像。
+
+图像生成要求：
+1. 艺术性：构图精美，色彩协调，具有美感
+2. 清晰度：图像清晰，细节丰富
+3. 创意性：富有创意，避免俗套
+4. 完整性：主题明确，元素完整
+
+请直接生成图像，不需要额外的文字说明。"""
+            full_prompt = f"{default_image_prompt}\n\n用户需求：{prompt}"
+
         # 使用 Google GenAI SDK 调用图像生成
         response = client.models.generate_content(
             model=model,
-            contents=prompt
+            contents=full_prompt
         )
 
         # 检查响应是否包含图像
