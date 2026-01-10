@@ -26,6 +26,13 @@ def init_gemini_config(app):
     else:
         logger.warning("⚠️  Gemini API Key 未配置")
 
+    # 检查代理配置
+    http_proxy = app.config.get('HTTP_PROXY') or app.config.get('HTTPS_PROXY')
+    if http_proxy:
+        logger.info(f"✅ 已配置代理: {http_proxy}")
+    else:
+        logger.info("ℹ️  未配置代理，直接连接 Gemini API")
+
 
 def handle_errors(f):
     """错误处理装饰器"""
@@ -104,20 +111,34 @@ def generate():
 
     # 构建请求
     api_url = f"{GEMINI_API_BASE}/models/{model}:generateContent?key={GEMINI_API_KEY}"
-    request_body = {
-        "contents": contents,
-        **generation_config
-    }
+
+    # 正确构建请求体
+    request_body = {"contents": contents}
+    if generation_config:
+        request_body["generationConfig"] = generation_config
+    if safety_settings:
+        request_body["safetySettings"] = safety_settings
 
     logger.info(f"[Gemini] 请求: 模型={model}, 内容长度={len(str(contents))}")
 
     # 调用 Gemini API
     try:
+        # 配置代理
+        proxies = None
+        http_proxy = app.config.get('HTTP_PROXY') or app.config.get('HTTPS_PROXY') if hasattr(app, 'config') else None
+        if http_proxy:
+            proxies = {
+                'http': http_proxy,
+                'https': http_proxy
+            }
+            logger.info(f"[Gemini] 使用代理: {http_proxy}")
+
         response = requests.post(
             api_url,
             json=request_body,
             headers={'Content-Type': 'application/json'},
-            timeout=60
+            timeout=60,
+            proxies=proxies
         )
         response.raise_for_status()
 
