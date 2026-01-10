@@ -63,8 +63,13 @@ def list_models():
     """获取可用模型列表"""
     models = [
         {
-            "id": "gemini-1.5-flash",
-            "name": "Gemini 1.5 Flash",
+            "id": "gemini-3-pro-preview",
+            "name": "Gemini 3 Pro Preview",
+            "description": "最新 Gemini 3 模型，高质量输出"
+        },
+        {
+            "id": "gemini-2.5-flash-preview",
+            "name": "Gemini 2.5 Flash Preview",
             "description": "快速响应，适合简单任务"
         },
         {
@@ -73,9 +78,9 @@ def list_models():
             "description": "高质量输出，适合复杂任务"
         },
         {
-            "id": "gemini-pro",
-            "name": "Gemini Pro",
-            "description": "通用模型"
+            "id": "gemini-1.5-flash",
+            "name": "Gemini 1.5 Flash",
+            "description": "快速响应模型"
         }
     ]
     return jsonify({
@@ -96,7 +101,7 @@ def generate():
         }), 500
 
     data = request.get_json()
-    model = data.get('model', 'gemini-1.5-flash')
+    model = data.get('model', 'gemini-3-pro-preview')
     contents = data.get('contents')
 
     # 验证参数
@@ -160,7 +165,7 @@ def aily():
 
     data = request.get_json()
     prompt = data.get('prompt')
-    model = data.get('model', 'gemini-1.5-flash')
+    model = data.get('model', 'gemini-3-pro-preview')
 
     if not prompt:
         return jsonify({
