@@ -145,7 +145,7 @@ def generate():
 @gemini_bp.route('/aily', methods=['POST'])
 @handle_errors
 def aily():
-    """飞书 Aily 简化接口"""
+    """飞书 Aily 文本生成接口"""
     client = get_genai_client()
     if not client:
         return jsonify({
@@ -163,7 +163,7 @@ def aily():
             "error": "缺少 prompt 参数"
         }), 400
 
-    logger.info(f"[Gemini/Aily] 请求: 模型={model}, prompt长度={len(prompt)}")
+    logger.info(f"[Gemini/Aily] 文本生成请求: 模型={model}, prompt长度={len(prompt)}")
 
     try:
         # 使用 Google GenAI SDK 调用
@@ -173,17 +173,94 @@ def aily():
         )
 
         text = response.text if response else ""
-        logger.info(f"[Gemini/Aily] 成功: 生成文本长度={len(text)}")
+        logger.info(f"[Gemini/Aily] 文本生成成功: 长度={len(text)}")
 
         return jsonify({
             "success": True,
+            "type": "text",
             "text": text,
             "model": model
         })
 
     except Exception as e:
-        logger.error(f"[Gemini/Aily] API 调用失败: {str(e)}")
+        logger.error(f"[Gemini/Aily] 文本生成失败: {str(e)}")
         return jsonify({
             "success": False,
-            "error": f"Gemini API 调用失败: {str(e)}"
+            "error": f"文本生成失败: {str(e)}"
+        }), 502
+
+
+@gemini_bp.route('/image', methods=['POST'])
+@handle_errors
+def generate_image():
+    """飞书 Aily 图像生成接口"""
+    client = get_genai_client()
+    if not client:
+        return jsonify({
+            "success": False,
+            "error": "服务器配置错误：缺少 Gemini API Key"
+        }), 500
+
+    data = request.get_json()
+    prompt = data.get('prompt')
+    model = data.get('model', 'gemini-3-pro-image-preview')
+
+    if not prompt:
+        return jsonify({
+            "success": False,
+            "error": "缺少 prompt 参数"
+        }), 400
+
+    logger.info(f"[Gemini/Image] 图像生成请求: 模型={model}, prompt长度={len(prompt)}")
+
+    try:
+        # 使用 Google GenAI SDK 调用图像生成
+        response = client.models.generate_content(
+            model=model,
+            contents=prompt
+        )
+
+        # 检查响应是否包含图像
+        image_data = None
+        if response and response.candidates:
+            for part in response.candidates[0].content.parts:
+                if part.inline_data:
+                    image_data = part.inline_data.data
+                    break
+
+        if image_data:
+            import base64
+            image_base64 = base64.b64encode(image_data).decode('utf-8')
+            logger.info(f"[Gemini/Image] 图像生成成功: 大小={len(image_data)} bytes")
+
+            return jsonify({
+                "success": True,
+                "type": "image",
+                "image": f"data:image/png;base64,{image_base64}",
+                "model": model
+            })
+        else:
+            # 如果没有图像，检查是否有文本（某些情况下图像模型可能返回文本）
+            text = response.text if response else ""
+            if text:
+                logger.info(f"[Gemini/Image] 返回文本而非图像")
+                return jsonify({
+                    "success": True,
+                    "type": "text",
+                    "text": text,
+                    "model": model,
+                    "note": "模型返回了文本而非图像"
+                })
+            else:
+                logger.warning(f"[Gemini/Image] 未生成图像或文本")
+                return jsonify({
+                    "success": False,
+                    "error": "图像生成失败：未返回有效内容"
+                }), 500
+
+    except Exception as e:
+        logger.error(f"[Gemini/Image] 图像生成失败: {str(e)}")
+        return jsonify({
+            "success": False,
+            "error": f"图像生成失败: {str(e)}"
         }), 502
