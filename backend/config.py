@@ -20,6 +20,9 @@ class Config:
     NOTION_DATABASE_ID = os.getenv('NOTION_DATABASE_ID', '')
     SYNC_ENABLED = os.getenv('SYNC_ENABLED', 'true').lower() == 'true'
 
+    # Gemini API 配置
+    GEMINI_API_KEY = os.getenv('GEMINI_API_KEY', '')
+
     _image_providers_config = None
     _text_providers_config = None
 

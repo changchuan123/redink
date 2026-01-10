@@ -6,6 +6,7 @@ from flask import Flask, send_from_directory
 from flask_cors import CORS
 from backend.config import Config
 from backend.routes.api import api_bp
+from backend.routes import gemini
 
 
 def setup_logging():
@@ -65,6 +66,10 @@ def create_app():
     })
 
     app.register_blueprint(api_bp)
+    app.register_blueprint(gemini.gemini_bp)
+
+    # 初始化 Gemini 配置
+    gemini.init_gemini_config(app)
 
     # 启动时验证配置
     _validate_config_on_startup(logger)
@@ -92,7 +97,13 @@ def create_app():
                     "health": "/api/health",
                     "outline": "POST /api/outline",
                     "generate": "POST /api/generate",
-                    "images": "GET /api/images/<filename>"
+                    "images": "GET /api/images/<filename>",
+                    "gemini": {
+                        "health": "/api/gemini/health",
+                        "generate": "/api/gemini/generate",
+                        "aily": "/api/gemini/aily",
+                        "models": "/api/gemini/models"
+                    }
                 }
             }
 
