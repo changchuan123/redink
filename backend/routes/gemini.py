@@ -65,27 +65,12 @@ def list_models():
         {
             "id": "gemini-3-pro-preview",
             "name": "Gemini 3 Pro Preview",
-            "description": "最新 Gemini 3 模型，支持文本和图像生成"
+            "description": "最新 Gemini 3 模型，用于文本生成"
         },
         {
-            "id": "gemini-2.5-flash-preview",
-            "name": "Gemini 2.5 Flash Preview",
-            "description": "快速响应，适合简单任务"
-        },
-        {
-            "id": "gemini-2.5-pro-preview",
-            "name": "Gemini 2.5 Pro Preview",
-            "description": "高质量输出，适合复杂任务"
-        },
-        {
-            "id": "gemini-1.5-pro",
-            "name": "Gemini 1.5 Pro",
-            "description": "高质量输出，适合复杂任务"
-        },
-        {
-            "id": "gemini-1.5-flash",
-            "name": "Gemini 1.5 Flash",
-            "description": "快速响应模型"
+            "id": "gemini-3-pro-image-preview",
+            "name": "Gemini 3 Pro Image Preview",
+            "description": "Gemini 3 图像生成模型"
         }
     ]
     return jsonify({
