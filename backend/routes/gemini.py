@@ -297,10 +297,33 @@ def generate_image():
             full_prompt = f"{default_image_prompt}\n\n用户需求：{prompt}"
 
         # 使用 Google GenAI SDK 调用图像生成
-        response = client.models.generate_content(
-            model=model,
-            contents=full_prompt
-        )
+        # 参考: https://ai.google.dev/gemini-api/docs/gemini-3
+        # 使用 response_mime_type 指定返回图像格式
+        from google.genai import types
+
+        # 如果是 gemini-3-pro-image-preview，使用 image_config
+        # 如果是 gemini-3-pro-preview，使用 response_mime_type
+        if "image-preview" in model:
+            # 专用图像模型，使用 image_config
+            response = client.models.generate_content(
+                model=model,
+                contents=full_prompt,
+                config=types.GenerateContentConfig(
+                    image_config=types.ImageConfig(
+                        aspect_ratio="1:1",
+                        image_size="2K"
+                    )
+                )
+            )
+        else:
+            # 通用模型，使用 response_mime_type 指定返回图像
+            response = client.models.generate_content(
+                model="gemini-3-pro-preview",  # 强制使用通用模型
+                contents=full_prompt,
+                config=types.GenerateContentConfig(
+                    response_mime_type="image/png"
+                )
+            )
 
         # 检查响应是否包含图像
         image_data = None
