@@ -339,12 +339,8 @@ def generate_image():
                     image_url = upload_result["url"]
                     logger.info(f"[Gemini/Image] 图片上传成功: {image_url}")
 
-                    return jsonify({
-                        "success": True,
-                        "type": "image",
-                        "image": image_url,  # 返回 COS URL 而不是 base64
-                        "model": model
-                    })
+                    # 直接返回纯文本 URL，方便飞书 Aily 显示
+                    return image_url
                 else:
                     # 上传失败，降级返回 base64
                     logger.warning(f"[Gemini/Image] COS 上传失败，降级返回 base64: {upload_result.get('error')}")
