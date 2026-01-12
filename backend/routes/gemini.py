@@ -284,8 +284,8 @@ def generate_image():
         # 参考: https://ai.google.dev/gemini-api/docs/image-generation
         from google.genai import types
 
-        # 使用更快的图像模型（gemini-2.5-flash-image 比 gemini-3-pro-image-preview 快得多）
-        image_model = "gemini-2.5-flash-image"
+        # 使用用户指定的模型
+        image_model = model
 
         # 如果有系统提示词，添加到 prompt 前面
         if system_prompt:
@@ -297,10 +297,7 @@ def generate_image():
             model=image_model,
             contents=final_prompt,
             config=types.GenerateContentConfig(
-                image_config=types.ImageConfig(
-                    aspect_ratio="1:1",
-                    image_size="1K"  # 使用 1K 分辨率加快生成速度
-                )
+                response_modalities=["Image", "Text"]
             )
         )
 
