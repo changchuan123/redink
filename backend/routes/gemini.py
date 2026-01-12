@@ -284,8 +284,8 @@ def generate_image():
         # 参考: https://ai.google.dev/gemini-api/docs/image-generation
         from google.genai import types
 
-        # 使用专用图像模型，简化提示词加快生成速度
-        image_model = "gemini-3-pro-image-preview"
+        # 使用更快的图像模型（gemini-2.5-flash-image 比 gemini-3-pro-image-preview 快得多）
+        image_model = "gemini-2.5-flash-image"
 
         # 如果有系统提示词，添加到 prompt 前面
         if system_prompt:
@@ -314,15 +314,61 @@ def generate_image():
 
         if image_data:
             import base64
+            import os
+            from datetime import datetime
+            from backend.services.cos_uploader import get_cos_uploader
+
             image_base64 = base64.b64encode(image_data).decode('utf-8')
             logger.info(f"[Gemini/Image] 图像生成成功: 大小={len(image_data)} bytes")
 
-            return jsonify({
-                "success": True,
-                "type": "image",
-                "image": f"data:image/png;base64,{image_base64}",
-                "model": model
-            })
+            # 上传图片到 COS
+            try:
+                # 生成唯一文件名
+                timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+                filename = f"gemini-{timestamp}"
+
+                # 获取 COS 上传服务
+                cos_uploader = get_cos_uploader()
+
+                # 上传到 COS
+                logger.info(f"[Gemini/Image] 开始上传图片到 COS: {filename}")
+                upload_result = cos_uploader.upload_from_bytes(
+                    image_data=image_data,
+                    filename=filename,
+                    mime_type="image/png"
+                )
+
+                if upload_result.get("success"):
+                    image_url = upload_result["url"]
+                    logger.info(f"[Gemini/Image] 图片上传成功: {image_url}")
+
+                    return jsonify({
+                        "success": True,
+                        "type": "image",
+                        "image": image_url,  # 返回 COS URL 而不是 base64
+                        "model": model
+                    })
+                else:
+                    # 上传失败，降级返回 base64
+                    logger.warning(f"[Gemini/Image] COS 上传失败，降级返回 base64: {upload_result.get('error')}")
+                    return jsonify({
+                        "success": True,
+                        "type": "image",
+                        "image": f"data:image/png;base64,{image_base64}",
+                        "model": model,
+                        "note": "COS 上传失败，返回 base64 格式"
+                    })
+
+            except Exception as e:
+                # 上传异常，降级返回 base64
+                logger.warning(f"[Gemini/Image] COS 上传异常，降级返回 base64: {str(e)}")
+                return jsonify({
+                    "success": True,
+                    "type": "image",
+                    "image": f"data:image/png;base64,{image_base64}",
+                    "model": model,
+                    "note": f"COS 上传异常: {str(e)}"
+                })
         else:
             # 如果没有图像，检查是否有文本（某些情况下图像模型可能返回文本）
             text = response.text if response else ""
